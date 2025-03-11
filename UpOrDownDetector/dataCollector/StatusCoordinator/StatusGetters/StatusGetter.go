@@ -7,6 +7,7 @@ import (
 
 type StatusResponse struct {
 	Name       string      `json:"name"`
+	Time       time.Time   `json:"time"`
 	Components []Component `json:"components"`
 }
 
@@ -42,8 +43,8 @@ type StatusGetter struct {
 	GetFunc    StatusGetterFunc
 }
 
-func NewStatusGetter(name string, getFunc StatusGetterFunc, delay time.Duration, errChan *chan GetterError) StatusGetter {
-	return StatusGetter{
+func NewStatusGetter(name string, getFunc StatusGetterFunc, delay time.Duration, errChan *chan GetterError) *StatusGetter {
+	return &StatusGetter{
 		Name:       name,
 		Delay:      delay,
 		State:      IsDown,
@@ -70,6 +71,7 @@ func (g *StatusGetter) RunProcess() {
 
 	var err error
 	var resp StatusResponse
+	defer close(g.OutputChan)
 	for {
 
 		if g.GetState() == IsDown {
