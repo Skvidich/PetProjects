@@ -1,92 +1,99 @@
 package StatusGetters
 
 import (
+	"dataCollector/common"
 	"sync"
 	"time"
 )
 
-type StatusResponse struct {
-	Name       string      `json:"name"`
-	Time       time.Time   `json:"time"`
-	Components []Component `json:"components"`
-}
-
-type Component struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-}
-
 type GetterState byte
 
+// TO-DO
+// add isPaused getter state
 const (
 	IsRunning GetterState = iota
-
 	IsDown
 	IsError
 )
-const OutBuffSize = 2
 
-type StatusGetterFunc func() (StatusResponse, error)
+func (st GetterState) String() string {
+	var res string
+	switch st {
+	case IsRunning:
+		res = "IsRunning"
+	case IsDown:
+		res = "IsDown"
+	case IsError:
+		res = "IsError"
+	}
+	return res
+}
 
-type GetterError struct {
+const outBuffSize = 2
+
+type StatusGetterFunc func() (common.StatusResponse, error)
+
+type GetterFeedback struct {
 	Err  error
 	Name string
 }
 
 type StatusGetter struct {
-	Name       string
-	Delay      time.Duration
-	State      GetterState
-	MuState    sync.Mutex
-	OutputChan chan StatusResponse
-	ErrorChan  chan GetterError
-	GetFunc    StatusGetterFunc
+	Name         string
+	delay        time.Duration
+	state        GetterState
+	muState      sync.Mutex
+	OutputChan   chan common.StatusResponse
+	feedbackChan *chan GetterFeedback
+	getFunc      StatusGetterFunc
 }
 
-func NewStatusGetter(name string, getFunc StatusGetterFunc, delay time.Duration, errChan *chan GetterError) *StatusGetter {
+func NewStatusGetter(name string, getFunc StatusGetterFunc, delay time.Duration, feedbackChan *chan GetterFeedback) *StatusGetter {
 	return &StatusGetter{
-		Name:       name,
-		Delay:      delay,
-		State:      IsDown,
-		MuState:    sync.Mutex{},
-		OutputChan: make(chan StatusResponse, OutBuffSize),
-		ErrorChan:  *errChan,
-		GetFunc:    getFunc,
+		Name:         name,
+		delay:        delay,
+		state:        IsDown,
+		muState:      sync.Mutex{},
+		OutputChan:   make(chan common.StatusResponse, outBuffSize),
+		feedbackChan: feedbackChan,
+		getFunc:      getFunc,
 	}
 }
 
 func (g *StatusGetter) GetState() GetterState {
-	g.MuState.Lock()
-	defer g.MuState.Unlock()
-	return g.State
+	g.muState.Lock()
+	defer g.muState.Unlock()
+	return g.state
 }
 
 func (g *StatusGetter) SetState(st GetterState) {
-	g.MuState.Lock()
-	defer g.MuState.Unlock()
-	g.State = st
+	g.muState.Lock()
+	defer g.muState.Unlock()
+	g.state = st
 }
 
 func (g *StatusGetter) RunProcess() {
 
 	var err error
-	var resp StatusResponse
+	var resp common.StatusResponse
 	defer close(g.OutputChan)
 	for {
 
 		if g.GetState() == IsDown {
+
+			*g.feedbackChan <- GetterFeedback{Name: g.Name, Err: nil}
 			return
 		}
-		resp, err = g.GetFunc()
+		resp, err = g.getFunc()
 
 		if err != nil {
 			g.SetState(IsError)
-			g.ErrorChan <- GetterError{Name: g.Name, Err: err}
+			*g.feedbackChan <- GetterFeedback{Name: g.Name, Err: err}
 			return
 		}
 
 		g.OutputChan <- resp
 
-		time.Sleep(g.Delay)
+		time.Sleep(g.delay)
 	}
 }
