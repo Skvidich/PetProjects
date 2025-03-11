@@ -24,12 +24,14 @@ type Component struct {
 //
 
 type StatusCoordinator struct {
-	GetterList   map[string]*StatusGetters.StatusGetter
+	getterList   map[string]*StatusGetters.StatusGetter
 	muList       sync.Mutex
-	GetterNames  []string
+	getterNames  []string
 	OutChan      chan common.StatusResponse
-	FeedbackChan chan StatusGetters.GetterFeedback
+	feedbackChan chan StatusGetters.GetterFeedback
 }
+
+const delay = 30 * time.Second
 
 func NewStatusCoordinator() *StatusCoordinator {
 
@@ -40,17 +42,12 @@ func NewStatusCoordinator() *StatusCoordinator {
 
 	getterList := make(map[string]*StatusGetters.StatusGetter, len(getterNames))
 
-	for _, name := range getterNames {
-		getterList[name] = StatusGetters.NewStatusGetter(name, StatusGetters.GetterFuncList[name], time.Second*300, &feedbackChan)
-		attachToBus(outChan, getterList[name].OutputChan)
-	}
-
 	res := &StatusCoordinator{
-		GetterNames:  getterNames,
+		getterNames:  getterNames,
 		muList:       sync.Mutex{},
-		GetterList:   getterList,
+		getterList:   getterList,
 		OutChan:      outChan,
-		FeedbackChan: feedbackChan,
+		feedbackChan: feedbackChan,
 	}
 	go res.processFeedback()
 	return res
@@ -68,7 +65,7 @@ func attachToBus(bus chan common.StatusResponse, newChan chan common.StatusRespo
 
 func (cord *StatusCoordinator) processFeedback() {
 
-	for feedback := range cord.FeedbackChan {
+	for feedback := range cord.feedbackChan {
 
 		if feedback.Err != nil {
 			logGetterError(feedback)
@@ -76,8 +73,8 @@ func (cord *StatusCoordinator) processFeedback() {
 			cord.removeGetter(feedback.Name)
 		}
 
-		//cord.GetterList[feedback.Name].SetState(StatusGetters.IsRunning)
-		//go cord.GetterList[feedback.Name].RunProcess()
+		//cord.getterList[feedback.Name].SetState(StatusGetters.IsRunning)
+		//go cord.getterList[feedback.Name].RunProcess()
 
 	}
 }
@@ -95,20 +92,20 @@ func iniGetterNames() []string {
 func (cord *StatusCoordinator) removeGetter(name string) {
 	cord.muList.Lock()
 	defer cord.muList.Unlock()
-	delete(cord.GetterList, name)
+	delete(cord.getterList, name)
 
 }
 
 func (cord *StatusCoordinator) addGetter(name string) {
 	cord.muList.Lock()
 	defer cord.muList.Unlock()
-	cord.GetterList[name] = StatusGetters.NewStatusGetter("name", StatusGetters.GetterFuncList[name], time.Second*300, &cord.FeedbackChan)
-
+	cord.getterList[name] = StatusGetters.NewStatusGetter(name, StatusGetters.GetterFuncList[name], delay, &cord.feedbackChan)
+	attachToBus(cord.OutChan, cord.getterList[name].OutputChan)
 }
 
 func (cord *StatusCoordinator) getterCount() int {
 	cord.muList.Lock()
 	defer cord.muList.Unlock()
-	return len(cord.GetterList)
+	return len(cord.getterList)
 
 }

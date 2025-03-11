@@ -14,13 +14,13 @@ type GetterInfo struct {
 
 func (cord *StatusCoordinator) GetInfo(name string) GetterInfo {
 
-	return GetterInfo{Name: name, State: cord.GetterList[name].GetState().String()}
+	return GetterInfo{Name: name, State: cord.getterList[name].GetState().String()}
 }
 
 func (cord *StatusCoordinator) GetListInfo() []GetterInfo {
 
-	res := make([]GetterInfo, len(cord.GetterList))
-	for name, getter := range cord.GetterList {
+	res := make([]GetterInfo, len(cord.getterList))
+	for name, getter := range cord.getterList {
 		res = append(res, GetterInfo{Name: name, State: getter.GetState().String()})
 	}
 
@@ -30,30 +30,30 @@ func (cord *StatusCoordinator) GetListInfo() []GetterInfo {
 
 func (cord *StatusCoordinator) RunGetter(name string) {
 	cord.addGetter(name)
-	cord.GetterList[name].SetState(StatusGetters.IsRunning)
-	go cord.GetterList[name].RunProcess()
+	cord.getterList[name].SetState(StatusGetters.IsRunning)
+	go cord.getterList[name].RunProcess()
 }
 
 func (cord *StatusCoordinator) RunAll() {
-	for _, name := range cord.GetterNames {
+	for _, name := range cord.getterNames {
 		cord.addGetter(name)
-		cord.GetterList[name].SetState(StatusGetters.IsRunning)
-		go cord.GetterList[name].RunProcess()
+		cord.getterList[name].SetState(StatusGetters.IsRunning)
+		go cord.getterList[name].RunProcess()
 	}
 }
 
 func (cord *StatusCoordinator) StopAll() {
-	for _, getter := range cord.GetterList {
+	for _, getter := range cord.getterList {
 		getter.SetState(StatusGetters.IsDown)
 	}
 }
 
 func (cord *StatusCoordinator) StopGetter(name string) {
-	cord.GetterList[name].SetState(StatusGetters.IsDown)
+	cord.getterList[name].SetState(StatusGetters.IsDown)
 }
 
 func (cord *StatusCoordinator) Shutdown() {
-	for _, getter := range cord.GetterList {
+	for _, getter := range cord.getterList {
 		getter.SetState(StatusGetters.IsDown)
 	}
 
@@ -61,5 +61,12 @@ func (cord *StatusCoordinator) Shutdown() {
 		// maybe add time.Sleep() there
 	}
 	close(cord.OutChan)
-	close(cord.FeedbackChan)
+	close(cord.feedbackChan)
+}
+
+func (cord *StatusCoordinator) IsGetterExist(name string) bool {
+	cord.muList.Lock()
+	defer cord.muList.Unlock()
+	_, res := cord.getterList[name]
+	return res
 }
