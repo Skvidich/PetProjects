@@ -2,7 +2,6 @@ package StatusRelay
 
 import (
 	"dataCollector/common"
-	"fmt"
 	"sync"
 )
 
@@ -12,17 +11,17 @@ type StatusRelay struct {
 	muLog     sync.Mutex
 	isResend  bool
 	muResend  sync.Mutex
-	logPath   string
+	endChan   chan struct{}
 }
 
-func NewStatusRelay(input chan common.StatusResponse, isLog bool, isResend bool, logPath string) *StatusRelay {
+func NewStatusRelay(input chan common.StatusResponse, isLog bool, isResend bool) *StatusRelay {
 	return &StatusRelay{
 		inputChan: input,
 		isLog:     isLog,
 		muLog:     sync.Mutex{},
 		isResend:  isResend,
 		muResend:  sync.Mutex{},
-		logPath:   logPath,
+		endChan:   make(chan struct{}),
 	}
 }
 
@@ -30,19 +29,16 @@ func (rel *StatusRelay) inputProcess() {
 	for status := range rel.inputChan {
 
 		if rel.GetLogState() {
-			logStatus(status)
+			common.LogStatus(status)
 		}
 
 		if rel.GetResendState() {
 
 		}
 	}
+	rel.endChan <- struct{}{}
 }
 
-func logStatus(status common.StatusResponse) {
-	fmt.Println(status.Name, " : ", status.Time.String())
-	for _, component := range status.Components {
-		fmt.Println(component.Name, " : ", component.Status)
-	}
-	fmt.Println()
+func (rel *StatusRelay) Close() {
+	<-rel.endChan
 }

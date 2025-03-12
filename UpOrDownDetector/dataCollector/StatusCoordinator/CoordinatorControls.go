@@ -67,6 +67,10 @@ func (cord *StatusCoordinator) Shutdown() {
 func (cord *StatusCoordinator) IsGetterExist(name string) bool {
 	cord.muList.Lock()
 	defer cord.muList.Unlock()
-	_, res := cord.getterList[name]
-	return res
+	for _, getter := range cord.getterNames {
+		if getter == name {
+			return true
+		}
+	}
+	return false
 }

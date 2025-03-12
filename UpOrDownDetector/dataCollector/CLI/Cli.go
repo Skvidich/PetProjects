@@ -3,6 +3,8 @@ package CLI
 import (
 	"bufio"
 	"dataCollector/StatusCoordinator"
+	"dataCollector/StatusRelay"
+	"dataCollector/common"
 	"fmt"
 	"os"
 	"strings"
@@ -11,7 +13,19 @@ import (
 
 func RunCLI() {
 
-	cord := StatusCoordinator.NewStatusCoordinator()
+	err := common.GetIniParameters("./dataCollector.ini")
+	if err != nil {
+		fmt.Println("error while parsing ini ", err.Error())
+		return
+	}
+
+	common.StatusLoggerInit(common.StatusLogPath)
+	common.ErrorLoggerInit(common.ErrorLogPath)
+	cord := StatusCoordinator.NewStatusCoordinator(common.StatusRequestDelay, common.GetterNames)
+	relay := StatusRelay.NewStatusRelay(cord.OutChan, common.RelayIsLog, common.RelayIsResend)
+	cord.RunAll()
+	relay.Run()
+
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Status Coordinator CLI")
 	fmt.Println("Enter 'help' for available commands")
@@ -40,15 +54,19 @@ func RunCLI() {
 			}
 			printGetterInfo(cord, parts[1])
 
+		case "start":
+			handleStartCommand(cord, parts)
+
 		case "stop":
 			handleStopCommand(cord, parts)
 
 		case "shutdown":
 			cord.Shutdown()
-			fmt.Println("System shutdown completed")
-			return
+			relay.Close()
+			common.KillErrorLogger()
+			common.KillStatusLogger()
 
-		case "exit", "quit":
+			fmt.Println("System shutdown completed")
 			return
 
 		default:
@@ -63,10 +81,9 @@ Available commands:
   list               - List all getters and their statuses
   info <name>        - Get info about specific getter
   start <name>       - Start getter(s)
-  stop [all|name]    - Stop getter(s)
+  stop <name>    	 - Stop getter(s)
   shutdown           - Full system shutdown
-  help               - Show this help
-  exit               - Exit the program`)
+  help               - Show this help`)
 }
 
 func printAllGetters(cord *StatusCoordinator.StatusCoordinator) {

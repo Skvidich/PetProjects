@@ -3,7 +3,6 @@ package StatusCoordinator
 import (
 	"dataCollector/StatusCoordinator/StatusGetters"
 	"dataCollector/common"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -29,15 +28,14 @@ type StatusCoordinator struct {
 	getterNames  []string
 	OutChan      chan common.StatusResponse
 	feedbackChan chan StatusGetters.GetterFeedback
+	delay        time.Duration
 }
 
-const delay = 30 * time.Second
-
-func NewStatusCoordinator() *StatusCoordinator {
+func NewStatusCoordinator(delay time.Duration, names []string) *StatusCoordinator {
 
 	outChan := make(chan common.StatusResponse)
 
-	getterNames := iniGetterNames()
+	getterNames := names
 	feedbackChan := make(chan StatusGetters.GetterFeedback, len(getterNames))
 
 	getterList := make(map[string]*StatusGetters.StatusGetter, len(getterNames))
@@ -48,6 +46,7 @@ func NewStatusCoordinator() *StatusCoordinator {
 		getterList:   getterList,
 		OutChan:      outChan,
 		feedbackChan: feedbackChan,
+		delay:        delay,
 	}
 	go res.processFeedback()
 	return res
@@ -80,13 +79,7 @@ func (cord *StatusCoordinator) processFeedback() {
 }
 
 func logGetterError(getErr StatusGetters.GetterFeedback) {
-	fmt.Println(getErr.Name, " ", getErr.Err.Error())
-}
-
-func iniGetterNames() []string {
-	res := make([]string, 0)
-	res = append(res, "Github")
-	return res
+	common.LogError(getErr.Name + " " + getErr.Err.Error())
 }
 
 func (cord *StatusCoordinator) removeGetter(name string) {
@@ -99,7 +92,7 @@ func (cord *StatusCoordinator) removeGetter(name string) {
 func (cord *StatusCoordinator) addGetter(name string) {
 	cord.muList.Lock()
 	defer cord.muList.Unlock()
-	cord.getterList[name] = StatusGetters.NewStatusGetter(name, StatusGetters.GetterFuncList[name], delay, &cord.feedbackChan)
+	cord.getterList[name] = StatusGetters.NewStatusGetter(name, StatusGetters.GetterFuncList[name], cord.delay, &cord.feedbackChan)
 	attachToBus(cord.OutChan, cord.getterList[name].OutputChan)
 }
 
