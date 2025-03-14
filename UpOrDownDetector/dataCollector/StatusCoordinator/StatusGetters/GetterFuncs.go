@@ -11,31 +11,35 @@ import (
 )
 
 var GetterFuncList = map[string]StatusGetterFunc{
-	"Github": GithubGet,
-	"Mock1":  Mock1Get,
-	"Mock2":  Mock2Get,
+	"Github":     GetterStatusWrapper("Github", "https://www.githubstatus.com/api/v2/summary.json"),
+	"DropBox":    GetterStatusWrapper("DropBox", "https://status.dropbox.com/api/v2/summary.json"),
+	"Discord":    GetterStatusWrapper("Discord", "https://status.discord.com/api/v2/summary.json"),
+	"Cloudflare": GetterStatusWrapper("Cloudflare", "https://www.cloudflarestatus.com/api/v2/summary.json"),
+	"Mock1":      Mock1Get,
+	"Mock2":      Mock2Get,
 }
 
-func GithubGet() (common.StatusResponse, error) {
-	resp, err := http.Get("https://www.githubstatus.com/api/v2/summary.json")
+func GetterStatusWrapper(name string, url string) func() (common.StatusResponse, error) {
+	return func() (common.StatusResponse, error) {
+		resp, err := http.Get(url)
 
-	if err != nil {
-		return common.StatusResponse{}, fmt.Errorf("error while get %v", err)
+		if err != nil {
+			return common.StatusResponse{}, fmt.Errorf("error while get %v", err)
+		}
+
+		var data struct {
+			Components []common.Component
+		}
+		decoder := json.NewDecoder(resp.Body)
+		decoder.UseNumber()
+		err = decoder.Decode(&data)
+		if err != nil {
+			return common.StatusResponse{}, fmt.Errorf("error decoding json %v", err)
+		}
+
+		res := common.StatusResponse{Name: name, Components: data.Components, Time: time.Now()}
+		return res, nil
 	}
-
-	var data struct {
-		Components []common.Component
-	}
-	decoder := json.NewDecoder(resp.Body)
-	decoder.UseNumber()
-	err = decoder.Decode(&data)
-	if err != nil {
-		return common.StatusResponse{}, fmt.Errorf("error decoding json %v", err)
-	}
-
-	res := common.StatusResponse{Name: "GitHub", Components: data.Components, Time: time.Now()}
-	return res, nil
-
 }
 
 func Mock1Get() (common.StatusResponse, error) {

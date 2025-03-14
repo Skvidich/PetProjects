@@ -2,43 +2,56 @@ package StatusRelay
 
 import (
 	"dataCollector/common"
-	"sync"
 )
 
 type StatusRelay struct {
-	inputChan chan common.StatusResponse
-	isLog     bool
-	muLog     sync.Mutex
-	isResend  bool
-	muResend  sync.Mutex
-	endChan   chan struct{}
+	inputChan     chan common.StatusResponse
+	isLog         bool
+	isResend      bool
+	endChan       chan struct{}
+	processStatus StatusProcess
 }
 
 func NewStatusRelay(input chan common.StatusResponse, isLog bool, isResend bool) *StatusRelay {
+
+	processStatus := func(response common.StatusResponse) {}
+
+	if isLog {
+		logWrap(processStatus)
+	}
+
+	if isResend {
+		resendWrap(processStatus)
+	}
 	return &StatusRelay{
-		inputChan: input,
-		isLog:     isLog,
-		muLog:     sync.Mutex{},
-		isResend:  isResend,
-		muResend:  sync.Mutex{},
-		endChan:   make(chan struct{}),
+		inputChan:     input,
+		isLog:         isLog,
+		isResend:      isResend,
+		endChan:       make(chan struct{}),
+		processStatus: processStatus,
 	}
 }
 
 func (rel *StatusRelay) inputProcess() {
 	for status := range rel.inputChan {
 
-		if rel.GetLogState() {
-			common.LogStatus(status)
-		}
-
-		if rel.GetResendState() {
-
-		}
+		rel.processStatus(status)
 	}
 	rel.endChan <- struct{}{}
 }
 
-func (rel *StatusRelay) Close() {
-	<-rel.endChan
+type StatusProcess func(st common.StatusResponse)
+
+func logWrap(prevFunc StatusProcess) StatusProcess {
+	return func(status common.StatusResponse) {
+		common.LogStatus(status)
+		prevFunc(status)
+	}
+}
+
+func resendWrap(prevFunc StatusProcess) StatusProcess {
+	return func(status common.StatusResponse) {
+		// ResendStatusFunction
+		prevFunc(status)
+	}
 }
