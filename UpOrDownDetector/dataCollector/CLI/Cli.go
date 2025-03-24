@@ -23,6 +23,12 @@ func RunCLI() {
 	common.ErrorLoggerInit(common.ErrorLogPath)
 	cord := StatusCoordinator.NewStatusCoordinator(common.StatusRequestDelay, common.GetterNames)
 	relay := StatusRelay.NewStatusRelay(cord.OutChan, common.RelayIsLog, common.RelayIsResend)
+	err = relay.InitProducer(common.KafkaTopic, common.KafkaAddrs)
+	if err != nil {
+		fmt.Println("error while initialising kafka producer ", err.Error())
+		return
+	}
+	relay.InitProcess()
 	cord.RunAll()
 	relay.Run()
 

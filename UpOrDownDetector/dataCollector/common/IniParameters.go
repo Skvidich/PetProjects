@@ -17,6 +17,9 @@ var RelayIsResend bool = true
 var ErrorLogPath string = "..\\logs\\error.log"
 var StatusLogPath string = "..\\logs\\status.log"
 
+var KafkaAddrs []string = make([]string, 0)
+var KafkaTopic string = ""
+
 func GetIniParameters(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
@@ -70,6 +73,13 @@ func GetIniParameters(path string) error {
 
 		case "StatusLogPath":
 			StatusLogPath = value
+		case "KafkaAddrs":
+			KafkaAddrs = strings.Split(value, ",")
+			for i, addr := range GetterNames {
+				KafkaAddrs[i] = strings.TrimSpace(addr)
+			}
+		case "KafkaTopic":
+			KafkaTopic = value
 		default:
 			return fmt.Errorf("unknown option")
 		}
