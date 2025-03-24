@@ -2,6 +2,7 @@ package StatusRelay
 
 import (
 	"dataCollector/common"
+	"github.com/IBM/sarama"
 )
 
 type StatusRelay struct {
@@ -10,19 +11,13 @@ type StatusRelay struct {
 	isResend      bool
 	endChan       chan struct{}
 	processStatus StatusProcess
+	Producer      *StatusProducer
 }
 
 func NewStatusRelay(input chan common.StatusResponse, isLog bool, isResend bool) *StatusRelay {
 
-	processStatus := func(response common.StatusResponse) {}
+	processStatus := func(response common.StatusResponse) error { return nil }
 
-	if isLog {
-		logWrap(processStatus)
-	}
-
-	if isResend {
-		resendWrap(processStatus)
-	}
 	return &StatusRelay{
 		inputChan:     input,
 		isLog:         isLog,
@@ -31,27 +26,64 @@ func NewStatusRelay(input chan common.StatusResponse, isLog bool, isResend bool)
 		processStatus: processStatus,
 	}
 }
+func (rel *StatusRelay) InitProducer(topic string, addrs []string) error {
+	conf := sarama.NewConfig()
+	conf.Producer.RequiredAcks = sarama.WaitForAll
+	conf.Producer.Retry.Max = 3
+	conf.Net.MaxOpenRequests = 5
+	conf.Producer.Partitioner = sarama.NewHashPartitioner
+
+	var err error
+	rel.Producer, err = NewStatusProducer(conf, addrs, topic)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (rel *StatusRelay) InitProcess() {
+	if rel.isLog {
+		rel.logWrap()
+	}
+	if rel.isResend {
+		rel.resendWrap()
+	}
+}
 
 func (rel *StatusRelay) inputProcess() {
 	for status := range rel.inputChan {
 
-		rel.processStatus(status)
+		err := rel.processStatus(status)
+		if err != nil {
+			break
+		}
 	}
 	rel.endChan <- struct{}{}
 }
 
-type StatusProcess func(st common.StatusResponse)
+type StatusProcess func(st common.StatusResponse) error
 
-func logWrap(prevFunc StatusProcess) StatusProcess {
-	return func(status common.StatusResponse) {
+func (rel *StatusRelay) logWrap() {
+	rel.processStatus = func(status common.StatusResponse) error {
 		common.LogStatus(status)
-		prevFunc(status)
+		err := rel.processStatus(status)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 }
 
-func resendWrap(prevFunc StatusProcess) StatusProcess {
-	return func(status common.StatusResponse) {
-		// ResendStatusFunction
-		prevFunc(status)
+func (rel *StatusRelay) resendWrap() {
+	rel.processStatus = func(status common.StatusResponse) error {
+		err := rel.Producer.Produce(status)
+		if err != nil {
+			return err
+		}
+		err = rel.processStatus(status)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 }
