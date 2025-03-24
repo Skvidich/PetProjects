@@ -64,9 +64,10 @@ func (rel *StatusRelay) inputProcess() {
 type StatusProcess func(st common.StatusResponse) error
 
 func (rel *StatusRelay) logWrap() {
+	originalProcessStatus := rel.processStatus
 	rel.processStatus = func(status common.StatusResponse) error {
 		common.LogStatus(status)
-		err := rel.processStatus(status)
+		err := originalProcessStatus(status)
 		if err != nil {
 			return err
 		}
@@ -75,12 +76,14 @@ func (rel *StatusRelay) logWrap() {
 }
 
 func (rel *StatusRelay) resendWrap() {
+	originalProcessStatus := rel.processStatus
+
 	rel.processStatus = func(status common.StatusResponse) error {
 		err := rel.Producer.Produce(status)
 		if err != nil {
 			return err
 		}
-		err = rel.processStatus(status)
+		err = originalProcessStatus(status)
 		if err != nil {
 			return err
 		}

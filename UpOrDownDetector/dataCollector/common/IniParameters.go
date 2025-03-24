@@ -75,7 +75,7 @@ func GetIniParameters(path string) error {
 			StatusLogPath = value
 		case "KafkaAddrs":
 			KafkaAddrs = strings.Split(value, ",")
-			for i, addr := range GetterNames {
+			for i, addr := range KafkaAddrs {
 				KafkaAddrs[i] = strings.TrimSpace(addr)
 			}
 		case "KafkaTopic":
