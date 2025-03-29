@@ -1,4 +1,4 @@
-package notificator
+package incidentNotificator
 
 import (
 	"dataProcessor/common"
