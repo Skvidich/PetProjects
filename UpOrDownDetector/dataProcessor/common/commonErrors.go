@@ -5,7 +5,7 @@ type EntityError byte
 const (
 	ProcessorError = EntityError(iota)
 	ConsumerError
-	ControllerError
+	SaverError
 	NotificationError
 )
 
