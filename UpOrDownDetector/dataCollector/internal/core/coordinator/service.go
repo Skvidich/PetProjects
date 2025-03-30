@@ -1,7 +1,7 @@
 package coordinator
 
 import (
-	"dataCollector/internal/getters"
+	"dataCollector/internal/core/getters"
 	"dataCollector/internal/utils"
 	"dataCollector/pkg/types"
 	"sync"
