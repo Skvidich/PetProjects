@@ -30,7 +30,7 @@ func InitErrLog(path string) {
 	}()
 }
 
-func LogStatus(status types.StatusResponse) {
+func LogStatus(status types.ServiceStatus) {
 	StatLogger.Println(status.Name, " : ", status.Time.String())
 	for _, component := range status.Components {
 		StatLogger.Println("\t", component.Name, " : ", component.Status)

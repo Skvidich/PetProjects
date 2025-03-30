@@ -2,7 +2,7 @@ package reader
 
 import (
 	"context"
-	"dataProcessor/common"
+	"dataProcessor/pkg/models"
 	"encoding/json"
 	"fmt"
 	"github.com/IBM/sarama"
@@ -76,7 +76,7 @@ func (c *KafkaConsumer) handlePartition(pc sarama.PartitionConsumer) {
 			if !ok {
 				return
 			}
-			var status common.ServiceStatus
+			var status models.ServiceStatus
 			if err := json.Unmarshal(msg.Value, &status); err != nil {
 				c.handleError(fmt.Errorf("message decode error: %w", err))
 				continue
@@ -116,7 +116,7 @@ func (c *KafkaConsumer) BackupQueue() *ConcurrentQueue {
 	return c.queue
 }
 
-func (c *KafkaConsumer) Next() (*common.ServiceStatus, error) {
+func (c *KafkaConsumer) Next() (*models.ServiceStatus, error) {
 
 	c.errMx.Lock()
 	err := c.lastErr

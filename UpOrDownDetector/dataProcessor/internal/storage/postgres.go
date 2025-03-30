@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"dataProcessor/common"
+	"dataProcessor/pkg/models"
 	"fmt"
 	"time"
 )
@@ -13,7 +13,7 @@ func NewSQLStore() *SQLStore {
 	return &SQLStore{}
 }
 
-func (s *SQLStore) StoreReport(report *common.Report, metrics []common.ComponentMetrics) error {
+func (s *SQLStore) StoreReport(report *models.Report, metrics []models.ComponentMetrics) error {
 	fmt.Println("statistic saved")
 	fmt.Println(report.Name, " ", report.PeriodStart.String(), " ", report.PeriodEnd.String())
 	for _, m := range metrics {
@@ -22,7 +22,7 @@ func (s *SQLStore) StoreReport(report *common.Report, metrics []common.Component
 	return nil
 }
 
-func (s *SQLStore) StoreIncident(incident *common.ServiceIncident) error {
+func (s *SQLStore) StoreIncident(incident *models.ServiceIncident) error {
 	fmt.Printf("Recording incident: %s [%s] %s-%s\n",
 		incident.Name,
 		incident.Component,

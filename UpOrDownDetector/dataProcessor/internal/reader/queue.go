@@ -1,12 +1,12 @@
 package reader
 
 import (
-	"dataProcessor/common"
+	"dataProcessor/pkg/models"
 	"sync"
 )
 
 type node struct {
-	value common.ServiceStatus
+	value models.ServiceStatus
 	next  *node
 }
 
@@ -24,7 +24,7 @@ func NewConcurrentQueue() *ConcurrentQueue {
 	}
 }
 
-func (q *ConcurrentQueue) Dequeue() *common.ServiceStatus {
+func (q *ConcurrentQueue) Dequeue() *models.ServiceStatus {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -44,7 +44,7 @@ func (q *ConcurrentQueue) Dequeue() *common.ServiceStatus {
 	return &removed
 }
 
-func (q *ConcurrentQueue) Enqueue(msg *common.ServiceStatus) {
+func (q *ConcurrentQueue) Enqueue(msg *models.ServiceStatus) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 

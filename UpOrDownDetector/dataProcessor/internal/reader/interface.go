@@ -1,7 +1,7 @@
 package reader
 
-import "dataProcessor/common"
+import "dataProcessor/pkg/models"
 
 type Reader interface {
-	Next() (*common.ServiceStatus, error)
+	Next() (*models.ServiceStatus, error)
 }
