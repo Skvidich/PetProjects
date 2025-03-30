@@ -29,7 +29,7 @@ func (st State) String() string {
 
 const outBuffSize = 2
 
-type GetterFunc func() (types.StatusResponse, error)
+type GetterFunc func() (types.ServiceStatus, error)
 
 type Feedback struct {
 	Err  error
@@ -41,7 +41,7 @@ type Getter struct {
 	interval     time.Duration
 	state        State
 	mu           sync.Mutex
-	OutChan      chan types.StatusResponse
+	OutChan      chan types.ServiceStatus
 	feedbackChan *chan Feedback
 	get          GetterFunc
 }
@@ -52,7 +52,7 @@ func New(name string, get GetterFunc, interval time.Duration, feedbackChan *chan
 		interval:     interval,
 		state:        Down,
 		mu:           sync.Mutex{},
-		OutChan:      make(chan types.StatusResponse, outBuffSize),
+		OutChan:      make(chan types.ServiceStatus, outBuffSize),
 		feedbackChan: feedbackChan,
 		get:          get,
 	}
@@ -73,7 +73,7 @@ func (g *Getter) SetState(st State) {
 func (g *Getter) Start() {
 
 	var err error
-	var resp types.StatusResponse
+	var resp types.ServiceStatus
 	defer close(g.OutChan)
 	for {
 

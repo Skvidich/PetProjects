@@ -2,7 +2,7 @@ package types
 
 import "time"
 
-type StatusResponse struct {
+type ServiceStatus struct {
 	Name       string      `json:"name"`
 	Time       time.Time   `json:"time"`
 	Components []Component `json:"components"`

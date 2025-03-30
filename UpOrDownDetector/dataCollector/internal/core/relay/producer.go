@@ -30,7 +30,7 @@ func NewProducer(cfg *sarama.Config, brokers []string, topic string) (*Producer,
 	}, nil
 }
 
-func (p *Producer) Produce(mess types.StatusResponse) error {
+func (p *Producer) Produce(mess types.ServiceStatus) error {
 
 	raw, err := json.Marshal(mess)
 	if err != nil {

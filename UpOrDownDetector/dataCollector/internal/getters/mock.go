@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-func Mock1() (types.StatusResponse, error) {
+func Mock1() (types.ServiceStatus, error) {
 
 	if rand.Intn(10) == 0 {
-		return types.StatusResponse{}, errors.New("service unavailable")
+		return types.ServiceStatus{}, errors.New("service unavailable")
 	}
 
 	services := []string{"API Gateway", "Database", "Auth Service", "Cache", "Payment Processor"}
@@ -26,17 +26,17 @@ func Mock1() (types.StatusResponse, error) {
 		})
 	}
 
-	return types.StatusResponse{
+	return types.ServiceStatus{
 		Name:       services[rand.Intn(len(services))],
 		Time:       time.Now().UTC(),
 		Components: randomComponents,
 	}, nil
 }
 
-func Mock2() (types.StatusResponse, error) {
+func Mock2() (types.ServiceStatus, error) {
 
 	if rand.Intn(5) == 0 {
-		return types.StatusResponse{}, errors.New("connection timeout")
+		return types.ServiceStatus{}, errors.New("connection timeout")
 	}
 
 	services := []string{"User Service", "Analytics", "Notification System", "File Storage", "AI Engine"}
@@ -51,7 +51,7 @@ func Mock2() (types.StatusResponse, error) {
 		})
 	}
 
-	return types.StatusResponse{
+	return types.ServiceStatus{
 		Name:       services[rand.Intn(len(services))],
 		Time:       time.Now().UTC(),
 		Components: randomComponents,

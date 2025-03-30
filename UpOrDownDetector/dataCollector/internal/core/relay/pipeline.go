@@ -7,7 +7,7 @@ import (
 )
 
 type Relay struct {
-	inChan    chan types.StatusResponse
+	inChan    chan types.ServiceStatus
 	logging   bool
 	resend    bool
 	done      chan struct{}
@@ -15,9 +15,9 @@ type Relay struct {
 	producer  *Producer
 }
 
-func NewRelay(in chan types.StatusResponse, logging bool, resend bool) *Relay {
+func NewRelay(in chan types.ServiceStatus, logging bool, resend bool) *Relay {
 
-	processStatus := func(response types.StatusResponse) error { return nil }
+	processStatus := func(response types.ServiceStatus) error { return nil }
 
 	return &Relay{
 		inChan:    in,
@@ -63,11 +63,11 @@ func (r *Relay) process() {
 	r.done <- struct{}{}
 }
 
-type StatusProcess func(st types.StatusResponse) error
+type StatusProcess func(st types.ServiceStatus) error
 
 func (r *Relay) wrapLogger() {
 	originalProcessStatus := r.processor
-	r.processor = func(status types.StatusResponse) error {
+	r.processor = func(status types.ServiceStatus) error {
 		utils.LogStatus(status)
 		err := originalProcessStatus(status)
 		if err != nil {
@@ -80,7 +80,7 @@ func (r *Relay) wrapLogger() {
 func (r *Relay) wrapResend() {
 	orig := r.processor
 
-	r.processor = func(status types.StatusResponse) error {
+	r.processor = func(status types.ServiceStatus) error {
 		err := r.producer.Produce(status)
 		if err != nil {
 			return err

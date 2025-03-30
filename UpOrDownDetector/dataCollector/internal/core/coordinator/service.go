@@ -12,14 +12,14 @@ type Coordinator struct {
 	getters      map[string]*getters.Getter
 	mu           sync.Mutex
 	getterNames  []string
-	OutChan      chan types.StatusResponse
+	OutChan      chan types.ServiceStatus
 	feedbackChan chan getters.Feedback
 	interval     time.Duration
 }
 
 func New(interval time.Duration, names []string) *Coordinator {
 
-	out := make(chan types.StatusResponse)
+	out := make(chan types.ServiceStatus)
 
 	c := &Coordinator{
 		getterNames:  names,
@@ -33,7 +33,7 @@ func New(interval time.Duration, names []string) *Coordinator {
 	return c
 }
 
-func (c *Coordinator) forward(src <-chan types.StatusResponse) { // Было attachToBus
+func (c *Coordinator) forward(src <-chan types.ServiceStatus) { // Было attachToBus
 	for s := range src {
 		c.OutChan <- s
 	}
