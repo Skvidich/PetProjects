@@ -1,8 +1,8 @@
 package storage
 
-import "dataProcessor/common"
+import "dataProcessor/pkg/models"
 
 type Repository interface {
-	StoreReport(overview *common.Report, components []common.ComponentMetrics) error
-	StoreIncident(stat *common.ServiceIncident) error
+	StoreReport(overview *models.Report, components []models.ComponentMetrics) error
+	StoreIncident(stat *models.ServiceIncident) error
 }
