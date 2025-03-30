@@ -1,39 +1,47 @@
-package CLI
+package main
 
 import (
 	"bufio"
-	"dataCollector/StatusCoordinator"
-	"dataCollector/StatusRelay"
-	"dataCollector/common"
+	"dataCollector/internal/config"
+	"dataCollector/internal/core/coordinator"
+	"dataCollector/internal/core/relay"
+	"dataCollector/internal/utils"
 	"fmt"
 	"os"
+	"path"
+	"runtime"
 	"strings"
 	"text/tabwriter"
 )
 
+func getProjectRoot() string {
+	_, filename, _, _ := runtime.Caller(0)
+	return path.Dir(path.Dir(path.Dir(filename)))
+}
+
 func RunCLI() {
 
-	config, err := common.GetIni("./dataCollector.ini")
+	cfg, err := config.LoadConfig(path.Join(getProjectRoot(), "configs/app.ini"))
 	if err != nil {
 		fmt.Println("error while parsing ini ", err.Error())
 		return
 	}
 
-	common.StatusLoggerInit(config.StatusLogPath)
-	common.ErrorLoggerInit(config.ErrorLogPath)
-	cord := StatusCoordinator.NewStatusCoordinator(config.StatusRequestDelay, config.GetterNames)
-	relay := StatusRelay.NewStatusRelay(cord.OutChan, config.RelayIsLog, config.RelayIsResend)
-	err = relay.InitProducer(config.KafkaTopic, config.KafkaAddrs)
+	utils.InitStatLogger(cfg.StatLog)
+	utils.InitErrLog(cfg.ErrLog)
+	cord := coordinator.New(cfg.ReqDelay, cfg.Getters)
+	rel := relay.NewRelay(cord.OutChan, cfg.LogRelay, cfg.ResendRelay)
+	err = rel.SetupProducer(cfg.KafkaTopic, cfg.KafkaBrokers)
 	if err != nil {
 		fmt.Println("error while initialising kafka producer ", err.Error())
 		return
 	}
-	relay.InitProcess()
-	cord.RunAll()
-	relay.Run()
+	rel.InitPipeline()
+	cord.StartAll()
+	rel.Run()
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Status Coordinator CLI")
+	fmt.Println("Status coordinator CLI")
 	fmt.Println("Enter 'help' for available commands")
 
 	for {
@@ -68,9 +76,9 @@ func RunCLI() {
 
 		case "shutdown":
 			cord.Shutdown()
-			relay.Close()
-			common.KillErrorLogger()
-			common.KillStatusLogger()
+			rel.Close()
+			utils.KillErrLogger()
+			utils.KillStatLogger()
 
 			fmt.Println("System shutdown completed")
 			return
@@ -92,25 +100,25 @@ Available commands:
   help               - Show this help`)
 }
 
-func printAllGetters(cord *StatusCoordinator.StatusCoordinator) {
+func printAllGetters(cord *coordinator.Coordinator) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "NAME\tSTATUS")
-	for _, info := range cord.GetListInfo() {
+	for _, info := range cord.GetterList() {
 		fmt.Fprintf(w, "%s\t%s\n", info.Name, info.State)
 	}
 	w.Flush()
 }
 
-func printGetterInfo(cord *StatusCoordinator.StatusCoordinator, name string) {
-	if !cord.IsGetterExist(name) {
+func printGetterInfo(cord *coordinator.Coordinator, name string) {
+	if !cord.Exists(name) {
 		fmt.Printf("Getter '%s' not found\n", name)
 		return
 	}
-	info := cord.GetInfo(name)
+	info := cord.Getter(name)
 	fmt.Printf("Getter: %s\nStatus: %s\n", info.Name, info.State)
 }
 
-func handleStartCommand(cord *StatusCoordinator.StatusCoordinator, parts []string) {
+func handleStartCommand(cord *coordinator.Coordinator, parts []string) {
 	if len(parts) < 2 {
 		fmt.Println("Error: missing target")
 		return
@@ -118,16 +126,16 @@ func handleStartCommand(cord *StatusCoordinator.StatusCoordinator, parts []strin
 
 	target := parts[1]
 
-	if !cord.IsGetterExist(target) {
+	if !cord.Exists(target) {
 		fmt.Printf("Getter '%s' not found\n", target)
 		return
 	}
-	cord.RunGetter(target)
+	cord.Start(target)
 	fmt.Printf("Getter '%s' started\n", target)
 
 }
 
-func handleStopCommand(cord *StatusCoordinator.StatusCoordinator, parts []string) {
+func handleStopCommand(cord *coordinator.Coordinator, parts []string) {
 	if len(parts) < 2 {
 		fmt.Println("Error: missing target")
 		return
@@ -139,11 +147,11 @@ func handleStopCommand(cord *StatusCoordinator.StatusCoordinator, parts []string
 		cord.StopAll()
 		fmt.Println("All getters stopped")
 	default:
-		if !cord.IsGetterExist(target) {
+		if !cord.Exists(target) {
 			fmt.Printf("Getter '%s' not found\n", target)
 			return
 		}
-		cord.StopGetter(target)
+		cord.Stop(target)
 		fmt.Printf("Getter '%s' stopped\n", target)
 	}
 }
