@@ -13,17 +13,17 @@ import (
 
 func RunCLI() {
 
-	err := common.GetIniParameters("./dataCollector.ini")
+	config, err := common.GetIni("./dataCollector.ini")
 	if err != nil {
 		fmt.Println("error while parsing ini ", err.Error())
 		return
 	}
 
-	common.StatusLoggerInit(common.StatusLogPath)
-	common.ErrorLoggerInit(common.ErrorLogPath)
-	cord := StatusCoordinator.NewStatusCoordinator(common.StatusRequestDelay, common.GetterNames)
-	relay := StatusRelay.NewStatusRelay(cord.OutChan, common.RelayIsLog, common.RelayIsResend)
-	err = relay.InitProducer(common.KafkaTopic, common.KafkaAddrs)
+	common.StatusLoggerInit(config.StatusLogPath)
+	common.ErrorLoggerInit(config.ErrorLogPath)
+	cord := StatusCoordinator.NewStatusCoordinator(config.StatusRequestDelay, config.GetterNames)
+	relay := StatusRelay.NewStatusRelay(cord.OutChan, config.RelayIsLog, config.RelayIsResend)
+	err = relay.InitProducer(config.KafkaTopic, config.KafkaAddrs)
 	if err != nil {
 		fmt.Println("error while initialising kafka producer ", err.Error())
 		return
