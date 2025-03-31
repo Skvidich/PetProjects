@@ -8,6 +8,7 @@ import (
 	"github.com/IBM/sarama"
 	"log"
 	"sync"
+	"time"
 )
 
 type KafkaConsumer struct {
@@ -16,8 +17,9 @@ type KafkaConsumer struct {
 	cancel       context.CancelFunc
 	partitionsWg sync.WaitGroup
 	queue        *ConcurrentQueue
-	errMx        sync.Mutex
+	lastStatus   sync.Map
 	lastErr      error
+	errMx        sync.Mutex
 }
 
 func NewConsumer(cfg *sarama.Config, brokers []string, queue *ConcurrentQueue) (*KafkaConsumer, error) {
@@ -36,6 +38,7 @@ func NewConsumer(cfg *sarama.Config, brokers []string, queue *ConcurrentQueue) (
 		cancel:       cancel,
 		partitionsWg: sync.WaitGroup{},
 		queue:        queue,
+		lastStatus:   sync.Map{},
 	}, nil
 
 }
@@ -81,7 +84,12 @@ func (c *KafkaConsumer) handlePartition(pc sarama.PartitionConsumer) {
 				c.handleError(fmt.Errorf("message decode error: %w", err))
 				continue
 			}
-			c.queue.Enqueue(&status)
+
+			last, ok := c.lastStatus.Load(status.Name)
+			if !ok || last.(time.Time) != status.Time {
+				c.queue.Enqueue(&status)
+				c.lastStatus.Store(status.Name, status.Time)
+			}
 
 		case <-c.ctx.Done():
 			return
