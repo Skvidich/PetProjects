@@ -2,9 +2,9 @@ package processor
 
 import (
 	"context"
-	"dataProcessor/internal/alert"
-	"dataProcessor/internal/reader"
-	"dataProcessor/internal/storage"
+	"dataProcessor/internal/core/alert"
+	"dataProcessor/internal/core/reader"
+	"dataProcessor/internal/core/storage"
 	"dataProcessor/pkg/errors"
 	"dataProcessor/pkg/models"
 	"time"
