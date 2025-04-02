@@ -1,31 +1,38 @@
 package relay
 
 import (
-	"dataCollector/internal/utils"
+	"dataCollector/internal/core/storage"
+	"dataCollector/internal/logger"
 	"dataCollector/pkg/types"
 	"github.com/IBM/sarama"
 )
 
 type Relay struct {
 	inChan    chan types.ServiceStatus
-	logging   bool
-	resend    bool
 	done      chan struct{}
 	processor StatusProcess
 	producer  *Producer
+	store     storage.Storage
+	errLog    logger.Logger
 }
 
-func NewRelay(in chan types.ServiceStatus, logging bool, resend bool) *Relay {
+func NewRelay(in chan types.ServiceStatus, save bool, resend bool, errLog logger.Logger, store storage.Storage) *Relay {
 
-	processStatus := func(response types.ServiceStatus) error { return nil }
-
-	return &Relay{
+	rel := &Relay{
 		inChan:    in,
-		logging:   logging,
-		resend:    resend,
 		done:      make(chan struct{}),
-		processor: processStatus,
+		processor: func(response types.ServiceStatus) error { return nil },
+		store:     store,
+		errLog:    errLog,
 	}
+	if save {
+		rel.wrapSave()
+	}
+	if resend {
+		rel.wrapResend()
+	}
+
+	return rel
 }
 
 func (r *Relay) SetupProducer(topic string, brokers []string) error {
@@ -44,12 +51,7 @@ func (r *Relay) SetupProducer(topic string, brokers []string) error {
 }
 
 func (r *Relay) InitPipeline() {
-	if r.logging {
-		r.wrapLogger()
-	}
-	if r.resend {
-		r.wrapResend()
-	}
+
 }
 
 func (r *Relay) process() {
@@ -65,15 +67,15 @@ func (r *Relay) process() {
 
 type StatusProcess func(st types.ServiceStatus) error
 
-func (r *Relay) wrapLogger() {
-	originalProcessStatus := r.processor
+func (r *Relay) wrapSave() {
+	orig := r.processor
 	r.processor = func(status types.ServiceStatus) error {
-		utils.LogStatus(status)
-		err := originalProcessStatus(status)
+		err := r.store.StoreRawReport(&status)
 		if err != nil {
 			return err
 		}
-		return nil
+
+		return orig(status)
 	}
 }
 

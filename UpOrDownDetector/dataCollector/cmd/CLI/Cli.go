@@ -5,8 +5,11 @@ import (
 	"dataCollector/internal/config"
 	"dataCollector/internal/core/coordinator"
 	"dataCollector/internal/core/relay"
-	"dataCollector/internal/utils"
+	"dataCollector/internal/core/storage"
+	"dataCollector/internal/logger"
+	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"runtime"
@@ -27,11 +30,37 @@ func RunCLI() {
 		return
 	}
 
-	utils.InitStatLogger(cfg.StatLog)
-	utils.InitErrLog(cfg.ErrLog)
-	cord := coordinator.New(cfg.ReqDelay, cfg.Getters)
-	rel := relay.NewRelay(cord.OutChan, cfg.LogRelay, cfg.ResendRelay)
-	err = rel.SetupProducer(cfg.KafkaTopic, cfg.KafkaBrokers)
+	errLogger, err := logger.NewErrLogger(cfg.ErrLog)
+	if err != nil {
+		fmt.Println("can't create logger ", err.Error())
+		return
+	}
+
+	db, err := sql.Open("pgx", cfg.DSN)
+	if err != nil {
+		log.Fatalf("Unable to connect: %v", err)
+	}
+	defer func() {
+		err := db.Close()
+		if err != nil {
+			log.Println(err.Error())
+		}
+	}()
+
+	err = db.Ping()
+	if err != nil {
+		log.Fatalf("Failed to ping: %v", err)
+	}
+
+	sqlStorage, err := storage.NewSQLStorage(db, cfg.ReportTable, cfg.ComponentTable)
+	if err != nil {
+		fmt.Println("can't create logger ", err.Error())
+		return
+	}
+
+	cord := coordinator.New(cfg.ReqDelay, cfg.Getters, errLogger)
+	rel := relay.NewRelay(cord.OutChan, cfg.RelayConfig.Save, cfg.RelayConfig.Resend, errLogger, sqlStorage)
+	err = rel.SetupProducer(cfg.KafkaProducerConfig.Topic, cfg.KafkaProducerConfig.Brokers)
 	if err != nil {
 		fmt.Println("error while initialising kafka producer ", err.Error())
 		return
@@ -77,9 +106,10 @@ func RunCLI() {
 		case "shutdown":
 			cord.Shutdown()
 			rel.Close()
-			utils.KillErrLogger()
-			utils.KillStatLogger()
-
+			err = errLogger.Close()
+			if err != nil {
+				fmt.Println("error while closing logger ", err.Error())
+			}
 			fmt.Println("System shutdown completed")
 			return
 

@@ -2,7 +2,7 @@ package coordinator
 
 import (
 	"dataCollector/internal/core/getters"
-	"dataCollector/internal/utils"
+	"dataCollector/internal/logger"
 	"dataCollector/pkg/types"
 	"sync"
 	"time"
@@ -15,9 +15,10 @@ type Coordinator struct {
 	OutChan      chan types.ServiceStatus
 	feedbackChan chan getters.Feedback
 	interval     time.Duration
+	errLog       logger.Logger
 }
 
-func New(interval time.Duration, names []string) *Coordinator {
+func New(interval time.Duration, names []string, errLog logger.Logger) *Coordinator {
 
 	out := make(chan types.ServiceStatus)
 
@@ -28,6 +29,7 @@ func New(interval time.Duration, names []string) *Coordinator {
 		OutChan:      out,
 		feedbackChan: make(chan getters.Feedback, len(names)),
 		interval:     interval,
+		errLog:       errLog,
 	}
 	go c.handleFeedback()
 	return c
@@ -44,16 +46,12 @@ func (c *Coordinator) handleFeedback() {
 	for feedback := range c.feedbackChan {
 
 		if feedback.Err != nil {
-			logError(feedback)
+			c.errLog.LogError(feedback.Name+" got error", feedback.Err)
 		} else {
 			c.removeGetter(feedback.Name)
 		}
 
 	}
-}
-
-func logError(getErr getters.Feedback) {
-	utils.LogError(getErr.Name + " " + getErr.Err.Error())
 }
 
 func (c *Coordinator) removeGetter(name string) {
