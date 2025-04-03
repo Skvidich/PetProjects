@@ -36,7 +36,7 @@ func (s *SQLStorage) StoreRawReport(stat *types.ServiceStatus) error {
 		}
 	}()
 
-	query := "INSERT INTO" + s.reportTable + " (service_name,start_time) VALUES ($1, $2) RETURNING id"
+	query := "INSERT INTO " + s.reportTable + " (service_name,get_time) VALUES ($1, $2) RETURNING id"
 	result := tx.QueryRow(query, stat.Name, stat.Time.Format(time.DateTime))
 
 	var reportId int64
@@ -44,7 +44,7 @@ func (s *SQLStorage) StoreRawReport(stat *types.ServiceStatus) error {
 		return fmt.Errorf("can't read last inserted id %w", err)
 	}
 
-	query = "INSERT INTO" + s.componentTable + " (report_id,component_name,status) VALUES (" + strconv.FormatInt(reportId, 10) + ",$1,$2)"
+	query = "INSERT INTO " + s.componentTable + " (report_id,component_name,status) VALUES (" + strconv.FormatInt(reportId, 10) + ",$1,$2)"
 	prep, err := tx.Prepare(query)
 	if err != nil {
 		return fmt.Errorf("can't prepare query %w", err)
