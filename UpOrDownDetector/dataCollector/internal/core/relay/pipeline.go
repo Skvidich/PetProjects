@@ -59,7 +59,7 @@ func (r *Relay) process() {
 
 		err := r.processor(status)
 		if err != nil {
-			break
+			r.errLog.LogError("can't process", err)
 		}
 	}
 	r.done <- struct{}{}
