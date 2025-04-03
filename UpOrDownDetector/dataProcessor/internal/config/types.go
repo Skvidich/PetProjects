@@ -1,7 +1,9 @@
 package config
 
-type AppConfig struct {
-	ErrLog string `ini:"ErrLog"`
+import "time"
+
+type Config struct {
+	AppConfig
 	KafkaReporterConfig
 	KafkaConsumerConfig
 	ProcessEngineConfig
@@ -9,22 +11,27 @@ type AppConfig struct {
 }
 
 type KafkaReporterConfig struct {
-	KafkaBrokers []string `ini:"KafkaBrokers"`
-	StartTopic   string   `ini:"StartTopic"`
-	EndTopic     string   `ini:"EndTopic"`
+	Brokers    []string `ini:"Brokers"`
+	StartTopic string   `ini:"StartTopic"`
+	EndTopic   string   `ini:"EndTopic"`
 }
 type KafkaConsumerConfig struct {
-	KafkaBrokers []string `ini:"KafkaBrokers"`
-	Topic        string   `ini:"Topic"`
+	Brokers []string `ini:"Brokers"`
+	Topic   string   `ini:"Topic"`
 }
 
 type PostgresStorageConfig struct {
-	Host     string `ini:"Host"`
-	User     string `ini:"User"`
-	Password string `ini:"Password"`
+	DSN            string `ini:"DSN"`
+	ReportTable    string `ini:"ReportTable"`
+	ComponentTable string `ini:"ComponentTable"`
+	IncidentTable  string `ini:"IncidentTable"`
 }
 
 type ProcessEngineConfig struct {
-	AggregationInterval string `ini:"AggregationInterval"`
-	ReadTimeout         string `ini:"ReadTimeout"`
+	AggregationInterval time.Duration `ini:"AggregationInterval"`
+	ReadTimeout         time.Duration `ini:"ReadTimeout"`
+}
+
+type AppConfig struct {
+	ErrLog string `ini:"ErrLog"`
 }
