@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-const AggregationInterval = time.Second * 60
-
 type incidentKey struct {
 	service   string
 	component string
@@ -38,6 +36,7 @@ type StatusEngine struct {
 	alertService    alert.Handler
 	ctx             context.Context
 	cancel          context.CancelFunc
+	aggrInterval    time.Duration
 	ErrChan         chan errors.TaggedError
 }
 
@@ -45,6 +44,7 @@ func NewEngine(
 	saver storage.Repository,
 	consumer reader.Reader,
 	notificator alert.Handler,
+	interval time.Duration,
 ) (*StatusEngine, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -57,6 +57,7 @@ func NewEngine(
 		alertService:    notificator,
 		ctx:             ctx,
 		cancel:          cancel,
+		aggrInterval:    interval,
 		ErrChan:         make(chan errors.TaggedError),
 	}, nil
 }
@@ -68,6 +69,10 @@ func (proc *StatusEngine) Start(timeout time.Duration) {
 	for {
 		select {
 		case <-proc.ctx.Done():
+			proc.ErrChan <- errors.TaggedError{
+				Type: errors.TypeProcessor,
+				Err:  nil,
+			}
 			return
 		case <-ctx.Done():
 			mess, err := proc.statusQueue.Next()
@@ -160,7 +165,7 @@ func (proc *StatusEngine) aggregateMetrics(mess *models.ServiceStatus) errors.Ta
 		proc.currentMetrics[mess.Name].components[component.Name][component.Status]++
 	}
 
-	deadline := proc.currentMetrics[mess.Name].intervalStart.Add(AggregationInterval)
+	deadline := proc.currentMetrics[mess.Name].intervalStart.Add(proc.aggrInterval)
 	if mess.Time.After(deadline) {
 		proc.currentMetrics[mess.Name].intervalEnd = mess.Time
 		overview, components := parseMetrics(proc.currentMetrics[mess.Name])
@@ -182,9 +187,11 @@ func (proc *StatusEngine) GetBackup() (IncidentBuffer, MetricsBuffer) {
 	return proc.activeIncidents, proc.currentMetrics
 }
 
-func (proc *StatusEngine) Close() {
+func (proc *StatusEngine) Close() errors.TaggedError {
 	proc.cancel()
+	err := <-proc.ErrChan
 	close(proc.ErrChan)
+	return err
 }
 
 func parseMetrics(metrics *ServiceMetrics) (*models.Report, []models.ComponentMetrics) {
