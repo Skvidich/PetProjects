@@ -10,7 +10,7 @@ import (
 type Relay struct {
 	inChan    chan types.ServiceStatus
 	done      chan struct{}
-	processor StatusProcess
+	processor []StatusProcess
 	producer  *Producer
 	store     storage.Storage
 	errLog    logger.Logger
@@ -21,15 +21,15 @@ func NewRelay(in chan types.ServiceStatus, save bool, resend bool, errLog logger
 	rel := &Relay{
 		inChan:    in,
 		done:      make(chan struct{}),
-		processor: func(response types.ServiceStatus) error { return nil },
+		processor: make([]StatusProcess, 0),
 		store:     store,
 		errLog:    errLog,
 	}
 	if save {
-		rel.wrapSave()
+		rel.addSave()
 	}
 	if resend {
-		rel.wrapResend()
+		rel.addResend()
 	}
 
 	return rel
@@ -56,10 +56,11 @@ func (r *Relay) InitPipeline() {
 
 func (r *Relay) process() {
 	for status := range r.inChan {
-
-		err := r.processor(status)
-		if err != nil {
-			r.errLog.LogError("can't process", err)
+		for _, proc := range r.processor {
+			err := proc(status)
+			if err != nil {
+				r.errLog.LogError("can't process", err)
+			}
 		}
 	}
 	r.done <- struct{}{}
@@ -67,27 +68,18 @@ func (r *Relay) process() {
 
 type StatusProcess func(st types.ServiceStatus) error
 
-func (r *Relay) wrapSave() {
-	orig := r.processor
-	r.processor = func(status types.ServiceStatus) error {
+func (r *Relay) addSave() {
+	proc := func(status types.ServiceStatus) error {
 		err := r.store.StoreRawReport(&status)
-		if err != nil {
-			return err
-		}
-
-		return orig(status)
+		return err
 	}
+	r.processor = append(r.processor, proc)
 }
 
-func (r *Relay) wrapResend() {
-	orig := r.processor
-
-	r.processor = func(status types.ServiceStatus) error {
+func (r *Relay) addResend() {
+	proc := func(status types.ServiceStatus) error {
 		err := r.producer.Produce(status)
-		if err != nil {
-			return err
-		}
-
-		return orig(status)
+		return err
 	}
+	r.processor = append(r.processor, proc)
 }
