@@ -3,6 +3,7 @@ package config
 import "time"
 
 type Config struct {
+	ServerConfig
 	CoordinatorConfig
 	RelayConfig
 	LoggerConfig
@@ -32,4 +33,8 @@ type StorageConfig struct {
 	DSN            string `ini:"DSN"`
 	ReportTable    string `ini:"ReportTable"`
 	ComponentTable string `ini:"ComponentTable"`
+}
+
+type ServerConfig struct {
+	Address string `ini:"Address"`
 }

@@ -43,5 +43,11 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("config relay mapping failed: %w", err)
 	}
 
+	section = iniFile.Section("Server")
+	err = section.MapTo(&cfg.ServerConfig)
+	if err != nil {
+		return nil, fmt.Errorf("config server mapping failed: %w", err)
+	}
+
 	return cfg, nil
 }
