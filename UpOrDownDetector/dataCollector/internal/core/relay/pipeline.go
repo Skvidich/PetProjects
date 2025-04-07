@@ -50,10 +50,6 @@ func (r *Relay) SetupProducer(topic string, brokers []string) error {
 	return nil
 }
 
-func (r *Relay) InitPipeline() {
-
-}
-
 func (r *Relay) process() {
 	for status := range r.inChan {
 		for _, proc := range r.processor {
