@@ -4,6 +4,7 @@ import (
 	"dataCollector/internal/core/getters"
 	"dataCollector/internal/logger"
 	"dataCollector/pkg/types"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -61,11 +62,17 @@ func (c *Coordinator) removeGetter(name string) {
 
 }
 
-func (c *Coordinator) addGetter(name string) {
+func (c *Coordinator) addGetter(name string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.getters[name] = getters.New(name, getters.Getters[name], c.interval, &c.feedbackChan)
+	getFunc, ok := getters.Getters[name]
+	if !ok {
+		return fmt.Errorf("such getter don't exist")
+	}
+
+	c.getters[name] = getters.New(name, getFunc, c.interval, &c.feedbackChan)
 	go c.forward(c.getters[name].OutChan)
+	return nil
 }
 
 func (c *Coordinator) count() int {
