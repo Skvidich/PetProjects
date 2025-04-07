@@ -45,13 +45,25 @@ func NewEngine(
 	consumer reader.Reader,
 	notificator alert.Handler,
 	interval time.Duration,
-) (*StatusEngine, error) {
+	statistic *MetricsBuffer,
+	incidents *IncidentBuffer,
+) *StatusEngine {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	if statistic == nil {
+		temp := MetricsBuffer(make(map[string]*ServiceMetrics))
+		statistic = &temp
+	}
+
+	if incidents == nil {
+		temp := IncidentBuffer(make(map[incidentKey]incidentValue))
+		incidents = &temp
+	}
+
 	return &StatusEngine{
-		activeIncidents: make(map[incidentKey]incidentValue),
-		currentMetrics:  make(map[string]*ServiceMetrics),
+		activeIncidents: *incidents,
+		currentMetrics:  *statistic,
 		storage:         saver,
 		statusQueue:     consumer,
 		alertService:    notificator,
@@ -59,7 +71,7 @@ func NewEngine(
 		cancel:          cancel,
 		aggrInterval:    interval,
 		ErrChan:         make(chan errors.TaggedError),
-	}, nil
+	}
 }
 
 func (proc *StatusEngine) Start(timeout time.Duration) {
@@ -183,8 +195,8 @@ func (proc *StatusEngine) sendError(errInf errors.TaggedError) {
 	proc.ErrChan <- errInf
 }
 
-func (proc *StatusEngine) GetBackup() (IncidentBuffer, MetricsBuffer) {
-	return proc.activeIncidents, proc.currentMetrics
+func (proc *StatusEngine) GetBackup() (*IncidentBuffer, *MetricsBuffer) {
+	return &proc.activeIncidents, &proc.currentMetrics
 }
 
 func (proc *StatusEngine) Close() errors.TaggedError {
