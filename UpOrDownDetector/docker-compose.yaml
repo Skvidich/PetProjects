@@ -1,0 +1,16 @@
+services:
+  data-processor:
+    container_name: data-processor
+    build:
+      context: .
+      dockerfile: processor.Dockerfile
+    volumes:
+      - ./processor-logs:/app/code/logs
+
+  data-collector:
+    container_name: data-collector
+    build:
+      context: .
+      dockerfile: collector.Dockerfile
+    volumes:
+       - ./collector-logs:/app/code/logs
