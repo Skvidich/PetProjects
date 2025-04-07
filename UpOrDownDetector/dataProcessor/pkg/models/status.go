@@ -14,9 +14,9 @@ type Component struct {
 }
 
 func IsUp(status string) bool {
-	return false
+	return status == "operational"
 }
 
 func IsDown(status string) bool {
-	return false
+	return status != "operational"
 }

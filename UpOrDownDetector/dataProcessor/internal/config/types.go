@@ -33,5 +33,6 @@ type ProcessEngineConfig struct {
 }
 
 type AppConfig struct {
-	ErrLog string `ini:"ErrLog"`
+	ErrLog   string `ini:"ErrLog"`
+	RetryMax int    `ini:"RetryMax"`
 }
