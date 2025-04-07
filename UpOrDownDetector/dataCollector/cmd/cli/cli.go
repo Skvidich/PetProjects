@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"bufio"
@@ -12,20 +12,13 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"log"
 	"os"
-	"path"
-	"runtime"
 	"strings"
 	"text/tabwriter"
 )
 
-func getProjectRoot() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return path.Dir(path.Dir(path.Dir(filename)))
-}
+func RunCLI(iniPath string) {
 
-func RunCLI() {
-
-	cfg, err := config.LoadConfig(path.Join(getProjectRoot(), "configs/app.ini"))
+	cfg, err := config.LoadConfig(iniPath)
 	if err != nil {
 		fmt.Println("error while parsing ini ", err.Error())
 		return
@@ -66,12 +59,11 @@ func RunCLI() {
 		fmt.Println("error while initialising kafka producer ", err.Error())
 		return
 	}
-	rel.InitPipeline()
 	cord.StartAll()
 	rel.Run()
 
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Status coordinator CLI")
+	fmt.Println("Status coordinator cli")
 	fmt.Println("Enter 'help' for available commands")
 
 	for {
@@ -141,12 +133,14 @@ func printAllGetters(cord *coordinator.Coordinator) {
 }
 
 func printGetterInfo(cord *coordinator.Coordinator, name string) {
-	if !cord.Exists(name) {
-		fmt.Printf("Getter '%s' not found\n", name)
-		return
+
+	info, err := cord.Getter(name)
+	if err != nil {
+		fmt.Println("Error", err.Error())
+	} else {
+		fmt.Printf("Getter: %s\nStatus: %s\n", info.Name, info.State)
 	}
-	info := cord.Getter(name)
-	fmt.Printf("Getter: %s\nStatus: %s\n", info.Name, info.State)
+
 }
 
 func handleStartCommand(cord *coordinator.Coordinator, parts []string) {
@@ -157,12 +151,12 @@ func handleStartCommand(cord *coordinator.Coordinator, parts []string) {
 
 	target := parts[1]
 
-	if !cord.Exists(target) {
-		fmt.Printf("Getter '%s' not found\n", target)
-		return
+	err := cord.Start(target)
+	if err != nil {
+		fmt.Println("Error: ", err.Error())
+	} else {
+		fmt.Printf("Getter '%s' started\n", target)
 	}
-	cord.Start(target)
-	fmt.Printf("Getter '%s' started\n", target)
 
 }
 
@@ -178,11 +172,12 @@ func handleStopCommand(cord *coordinator.Coordinator, parts []string) {
 		cord.StopAll()
 		fmt.Println("All getters stopped")
 	default:
-		if !cord.Exists(target) {
-			fmt.Printf("Getter '%s' not found\n", target)
-			return
+		err := cord.Stop(target)
+		if err != nil {
+			fmt.Println("Error: ", err.Error())
+		} else {
+			fmt.Printf("Getter '%s' stopped\n", target)
 		}
-		cord.Stop(target)
-		fmt.Printf("Getter '%s' stopped\n", target)
+
 	}
 }
