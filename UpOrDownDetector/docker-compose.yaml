@@ -1,3 +1,5 @@
+name: UpOrDownDetector
+
 services:
   data-processor:
     container_name: data-processor
@@ -6,6 +8,15 @@ services:
       dockerfile: processor.Dockerfile
     volumes:
       - ./processor-logs:/app/code/logs
+    networks:
+      - app-network
+
+    depends_on:
+
+      postgres-statistic:
+        condition: service_healthy
+      init-kafka:
+        condition: service_completed_successfully
 
   data-collector:
     container_name: data-collector
@@ -14,3 +25,198 @@ services:
       dockerfile: collector.Dockerfile
     volumes:
        - ./collector-logs:/app/code/logs
+    networks:
+      - app-network
+    depends_on:
+      postgres-raw:
+        condition: service_healthy
+      init-kafka:
+        condition: service_completed_successfully
+
+  zookeeper:
+    container_name: zookeeper
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-network
+
+  kafka1:
+    container_name: kafka1
+    healthcheck:
+      test: nc -z kafka1 9092 || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+    networks:
+      - kafka-network
+      - app-network
+
+  kafka2:
+    container_name: kafka2
+    healthcheck:
+      test: nc -z kafka2 9093 || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9093"
+      - "29093:29093"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9093,PLAINTEXT_HOST://localhost:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    networks:
+      - kafka-network
+      - app-network
+
+  kafka3:
+    container_name: kafka3
+    healthcheck:
+      test: nc -z kafka3 9094 || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "9094:9094"
+      - "29094:29094"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9094,PLAINTEXT_HOST://localhost:29094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    networks:
+      - kafka-network
+      - app-network
+
+  init-kafka:
+    container_name: init-kafka
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      until kafka-broker-api-versions --bootstrap-server kafka1:9092; do sleep 5; done
+
+      echo -e 'Creating Kafka topics'
+      kafka-topics --bootstrap-server kafka1:9092 --create --if-not-exists --topic Statuses --replication-factor 3 --partitions 3
+      kafka-topics --bootstrap-server kafka1:9092 --create --if-not-exists --topic Started_incidents --replication-factor 3 --partitions 3
+      kafka-topics --bootstrap-server kafka1:9092 --create --if-not-exists --topic Ended_incidents --replication-factor 3 --partitions 3
+
+      echo -e 'Successfully created topics:'
+      kafka-topics --bootstrap-server kafka1:9092 --list
+      "
+    networks:
+      - kafka-network
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "kafka1:9092", "--list" ]
+      interval: 10s
+      timeout: 5s
+      retries: 1
+
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: cluster-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092,kafka2:9093,kafka3:9094
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+    networks:
+      - kafka-network
+
+  postgres-statistic:
+    image: postgres:latest
+    container_name: postgres-statistic
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: statistic
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data_sql/stat.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    networks:
+      - postgres-network
+      - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d statistic" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-raw:
+    image: postgres:latest
+    container_name: postgres-raw
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: raw
+    ports:
+      - "5431:5432"
+    volumes:
+      - ./data_sql/raw.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    networks:
+      - postgres-network
+      - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d raw" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres-statistic
+      - postgres-raw
+    networks:
+      - postgres-network
+
+networks:
+  app-network:
+    driver: bridge
+  postgres-network:
+    driver: bridge
+  kafka-network:
+    driver: bridge
