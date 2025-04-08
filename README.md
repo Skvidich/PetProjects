@@ -6,4 +6,4 @@ This repository contains pet projects to explore new technologies and train tech
 ### UpOrDownDetector
 - **Description**: Tracking servies statuses and collecting statistic 
 - **Tech**: Golang, Kafka, gRPC, PostgreSQL, Docker 
-- [Code](/UpOrDownDetector)
+- [Learn more](/UpOrDownDetector)
