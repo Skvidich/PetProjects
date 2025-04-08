@@ -12,7 +12,12 @@ services:
       - app-network
 
     depends_on:
-
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
       postgres-statistic:
         condition: service_healthy
       init-kafka:
@@ -27,7 +32,15 @@ services:
        - ./collector-logs:/app/code/logs
     networks:
       - app-network
+    ports:
+      - "8888:8888"
     depends_on:
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
       postgres-raw:
         condition: service_healthy
       init-kafka:
