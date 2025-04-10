@@ -138,3 +138,8 @@ tail -f processor-logs/processor.log
 ## Feedback
 
 Open an issue or submit a PR if you'd like to contribute or suggest changes.
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE) © 2025 [skvidich](https://github.com/skvidich)
+
