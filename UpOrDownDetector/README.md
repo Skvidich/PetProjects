@@ -6,7 +6,7 @@ A distributed system for monitoring service statuses, detecting incidents, and a
 
 <pre>
 UpOrDownDetector/  
-├── collector-logs/ # Log files for data collector  
+├── collector-logs/               # Log files for data collector  
 ├── data_sql/ # SQL initialization scripts  
 ├── dataCollector/ # Data collection microservice  
 ├── dataProcessor/ # Data processing microservice  
