@@ -4,7 +4,7 @@ services:
   data-processor:
     container_name: data-processor
     build:
-      context: .
+      context: UpOrDownDetector
       dockerfile: processor.Dockerfile
     volumes:
       - ./processor-logs:/app/code/logs
@@ -26,7 +26,7 @@ services:
   data-collector:
     container_name: data-collector
     build:
-      context: .
+      context: UpOrDownDetector
       dockerfile: collector.Dockerfile
     volumes:
        - ./collector-logs:/app/code/logs

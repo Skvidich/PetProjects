@@ -3,7 +3,7 @@ FROM golang:1.24-alpine
 
 WORKDIR /app
 RUN mkdir -p code
-COPY dataCollector/ ./code/
+COPY dataCollector ./code/
 
 
 WORKDIR /app/code
