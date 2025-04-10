@@ -4,16 +4,17 @@ A distributed system for monitoring service statuses, detecting incidents, and a
 
 ## Project Structure
 
-UpOrDownDetector/
-├── collector-logs/ # Log files for data collector
-├── data_sql/ # SQL initialization scripts
-├── dataCollector/ # Data collection microservice
-├── dataProcessor/ # Data processing microservice
-├── processor-logs/ # Log files for data processor
-├── collector.Dockerfile # Dockerfile for data collector
-├── processor.Dockerfile # Dockerfile for data processor
-└── docker-compose.yaml # Docker Compose configuration
-
+<pre>
+UpOrDownDetector/  
+├── collector-logs/ # Log files for data collector  
+├── data_sql/ # SQL initialization scripts  
+├── dataCollector/ # Data collection microservice  
+├── dataProcessor/ # Data processing microservice  
+├── processor-logs/ # Log files for data processor  
+├── collector.Dockerfile # Dockerfile for data collector  
+├── processor.Dockerfile # Dockerfile for data processor  
+└── docker-compose.yaml # Docker Compose configuration  
+</pre>
 
 ## System Components
 
